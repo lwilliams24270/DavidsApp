@@ -1,439 +1,777 @@
-import * as readline from 'readline';
+// Gamified Health & Vitality Self-Improvement App
+// Core TypeScript structure for mobile app
 
-// Types and Interfaces
-interface FitnessBaseline {
-  currentWeight: number;
-  height: number;
-  age: number;
-  activityLevel: 'sedentary' | 'lightly_active' | 'moderately_active' | 'very_active' | 'extremely_active';
-  workoutFrequency: number; // times per week
-  workoutDuration: number; // minutes per session
-  fitnessExperience: 'beginner' | 'intermediate' | 'advanced';
-  preferredActivities: string[];
-  currentStrengthLevel: number; // 1-10 scale
-  currentEnduranceLevel: number; // 1-10 scale
-  currentFlexibilityLevel: number; // 1-10 scale
-  timeAvailable: number; // minutes per day
-  budget: 'none' | 'low' | 'moderate' | 'high';
-  equipment: string[];
-  limitations: string[];
-  motivation: number; // 1-10 scale
+// ============ INTERFACES & TYPES ============
+
+interface SurveyQuestion {
+  id: string;
+  type: 'scale' | 'text' | 'number' | 'multiple_choice' | 'boolean';
+  category: string;
+  subcategory: string;
+  question: string;
+  options?: string[];
+  min?: number;
+  max?: number;
+  required: boolean;
 }
 
-interface FitnessGoals {
-  targetWeight?: number;
-  primaryGoal: 'weight_loss' | 'muscle_gain' | 'strength' | 'endurance' | 'flexibility' | 'general_fitness';
-  targetStrengthLevel: number; // 1-10 scale
-  targetEnduranceLevel: number; // 1-10 scale
-  targetFlexibilityLevel: number; // 1-10 scale
-  timeframe: number; // months
-  priority: 'high' | 'medium' | 'low';
-  specificTargets: string[];
+interface SurveyResponse {
+  questionId: string;
+  value: number | string | boolean;
+  timestamp: Date;
+}
+
+interface GoalTimeframe {
+  threeMonths: number;
+  sixMonths: number;
+  oneYear: number;
+  fiveYears: number;
+  tenYears: number;
+}
+
+interface UserBaseline {
+  energyLevel: number;
+  physicalFitness: number;
+  strength: number;
+  flexibility: number;
+  weight: number;
+  height: number;
+  nutritionQuality: number;
+  hydration: number;
+  sleepQuality: number;
+  stressManagement: number;
+  currentChallenges: string[];
+}
+
+interface UserGoals {
+  energyLevel: GoalTimeframe;
+  physicalFitness: GoalTimeframe;
+  weight: GoalTimeframe;
+  customGoals: {
+    [key: string]: GoalTimeframe;
+  };
 }
 
 interface DailyMission {
   id: string;
   title: string;
   description: string;
-  category: 'strength' | 'cardio' | 'flexibility' | 'recovery' | 'nutrition';
+  category: string;
   difficulty: 'easy' | 'medium' | 'hard';
+  xpReward: number;
+  coinReward: number;
   estimatedTime: number; // minutes
-  equipment: string[];
-  instructions: string[];
+  type: 'habit' | 'challenge' | 'milestone';
+  isCompleted: boolean;
+  streak?: number;
 }
 
-class FitnessQuestionnaire {
-  private rl: readline.Interface;
-  private baseline: Partial<FitnessBaseline> = {};
-  private goals: Partial<FitnessGoals> = {};
+interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  xpReward: number;
+  unlockedAt?: Date;
+  requirements: {
+    type: 'streak' | 'total_missions' | 'category_progress' | 'goal_reached';
+    value: number;
+    category?: string;
+  }[];
+}
+
+interface UserProgress {
+  level: number;
+  xp: number;
+  coins: number;
+  streaks: { [category: string]: number };
+  completedMissions: string[];
+  unlockedAchievements: string[];
+  lastActive: Date;
+}
+
+interface User {
+  id: string;
+  name: string;
+  baseline: UserBaseline;
+  goals: UserGoals;
+  progress: UserProgress;
+  surveyResponses: SurveyResponse[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// ============ SURVEY QUESTIONS DATA ============
+
+const healthVitalitySurvey: SurveyQuestion[] = [
+  // Baseline Assessment
+  {
+    id: 'baseline_energy',
+    type: 'scale',
+    category: 'health_vitality',
+    subcategory: 'baseline',
+    question: 'Rate your current overall energy level',
+    min: 1,
+    max: 10,
+    required: true
+  },
+  {
+    id: 'baseline_fitness',
+    type: 'scale',
+    category: 'health_vitality',
+    subcategory: 'baseline',
+    question: 'Rate your current physical fitness level',
+    min: 1,
+    max: 10,
+    required: true
+  },
+  {
+    id: 'current_weight',
+    type: 'number',
+    category: 'health_vitality',
+    subcategory: 'baseline',
+    question: 'What is your current weight? (lbs)',
+    required: true
+  },
+  {
+    id: 'height',
+    type: 'number',
+    category: 'health_vitality',
+    subcategory: 'baseline',
+    question: 'What is your height? (inches)',
+    required: true
+  },
+  {
+    id: 'exercise_frequency',
+    type: 'multiple_choice',
+    category: 'health_vitality',
+    subcategory: 'baseline',
+    question: 'How often do you currently exercise?',
+    options: ['Never', '1-2 times/week', '3-4 times/week', '5+ times/week', 'Daily'],
+    required: true
+  },
+  {
+    id: 'sleep_hours',
+    type: 'number',
+    category: 'health_vitality',
+    subcategory: 'baseline',
+    question: 'Average hours of sleep per night',
+    min: 0,
+    max: 12,
+    required: true
+  },
+  {
+    id: 'baseline_nutrition',
+    type: 'scale',
+    category: 'health_vitality',
+    subcategory: 'baseline',
+    question: 'Rate the quality of your current nutrition',
+    min: 1,
+    max: 10,
+    required: true
+  },
+  {
+    id: 'stress_level',
+    type: 'scale',
+    category: 'health_vitality',
+    subcategory: 'baseline',
+    question: 'Rate your current stress management',
+    min: 1,
+    max: 10,
+    required: true
+  },
+  
+  // Goal Setting Questions
+  {
+    id: 'goal_energy_3m',
+    type: 'scale',
+    category: 'health_vitality',
+    subcategory: 'goals',
+    question: 'Energy level goal for 3 months',
+    min: 1,
+    max: 10,
+    required: true
+  },
+  {
+    id: 'goal_fitness_3m',
+    type: 'scale',
+    category: 'health_vitality',
+    subcategory: 'goals',
+    question: 'Fitness level goal for 3 months',
+    min: 1,
+    max: 10,
+    required: true
+  },
+  {
+    id: 'goal_weight_3m',
+    type: 'number',
+    category: 'health_vitality',
+    subcategory: 'goals',
+    question: 'Weight goal for 3 months (lbs)',
+    required: true
+  }
+  // Additional goal questions would continue...
+];
+
+// ============ CORE CLASSES ============
+
+class HealthVitalityApp {
+  private users: Map<string, User> = new Map();
+  private achievements: Achievement[] = [];
+  private missionTemplates: DailyMission[] = [];
 
   constructor() {
-    this.rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout
-    });
+    this.initializeAchievements();
+    this.initializeMissionTemplates();
   }
 
-  private async ask(question: string): Promise<string> {
-    return new Promise((resolve) => {
-      this.rl.question(question, resolve);
-    });
-  }
+  // ============ SURVEY PROCESSING ============
 
-  private async askNumber(question: string, min?: number, max?: number): Promise<number> {
-    while (true) {
-      const answer = await this.ask(question);
-      const num = parseFloat(answer);
-      if (!isNaN(num) && (min === undefined || num >= min) && (max === undefined || num <= max)) {
-        return num;
-      }
-      console.log(`Please enter a valid number${min !== undefined ? ` between ${min}` : ''}${max !== undefined ? ` and ${max}` : ''}.`);
-    }
-  }
-
-  private async askChoice<T extends string>(question: string, choices: T[]): Promise<T> {
-    while (true) {
-      console.log(question);
-      choices.forEach((choice, index) => {
-        console.log(`${index + 1}. ${choice.replace('_', ' ')}`);
-      });
-      
-      const answer = await this.ask('Choose a number: ');
-      const choiceIndex = parseInt(answer) - 1;
-      
-      if (choiceIndex >= 0 && choiceIndex < choices.length) {
-        return choices[choiceIndex];
-      }
-      console.log('Please choose a valid option.');
-    }
-  }
-
-  async collectBaseline(): Promise<void> {
-    console.log('\n=== PERSONAL FITNESS BASELINE ASSESSMENT ===\n');
-
-    // Basic demographics
-    this.baseline.age = await this.askNumber('What is your age? ', 13, 100);
-    this.baseline.currentWeight = await this.askNumber('What is your current weight (in lbs)? ', 50, 500);
-    this.baseline.height = await this.askNumber('What is your height (in inches)? ', 36, 96);
-
-    // Activity level
-    this.baseline.activityLevel = await this.askChoice(
-      '\nWhat best describes your current activity level?',
-      ['sedentary', 'lightly_active', 'moderately_active', 'very_active', 'extremely_active']
-    );
-
-    // Current fitness routine
-    this.baseline.workoutFrequency = await this.askNumber('How many times per week do you currently exercise? ', 0, 14);
+  processSurveyResponses(userId: string, responses: SurveyResponse[]): UserBaseline {
+    const responseMap = new Map(responses.map(r => [r.questionId, r.value]));
     
-    if (this.baseline.workoutFrequency > 0) {
-      this.baseline.workoutDuration = await this.askNumber('How long is your average workout session (minutes)? ', 5, 300);
-    } else {
-      this.baseline.workoutDuration = 0;
-    }
-
-    // Experience level
-    this.baseline.fitnessExperience = await this.askChoice(
-      '\nWhat is your fitness experience level?',
-      ['beginner', 'intermediate', 'advanced']
-    );
-
-    // Self-assessment scales
-    this.baseline.currentStrengthLevel = await this.askNumber('Rate your current strength level (1-10, where 1 is very weak and 10 is very strong): ', 1, 10);
-    this.baseline.currentEnduranceLevel = await this.askNumber('Rate your current endurance level (1-10, where 1 is very poor and 10 is excellent): ', 1, 10);
-    this.baseline.currentFlexibilityLevel = await this.askNumber('Rate your current flexibility level (1-10, where 1 is very stiff and 10 is very flexible): ', 1, 10);
-
-    // Constraints and resources
-    this.baseline.timeAvailable = await this.askNumber('How many minutes per day can you realistically dedicate to fitness? ', 0, 300);
-    
-    this.baseline.budget = await this.askChoice(
-      '\nWhat is your fitness budget?',
-      ['none', 'low', 'moderate', 'high']
-    );
-
-    // Equipment (simplified for demo)
-    const hasGym = await this.ask('Do you have access to a gym? (y/n): ');
-    const hasHome = await this.ask('Do you have basic home equipment (dumbbells, resistance bands, etc.)? (y/n): ');
-    
-    this.baseline.equipment = [];
-    if (hasGym.toLowerCase() === 'y') this.baseline.equipment.push('gym_access');
-    if (hasHome.toLowerCase() === 'y') this.baseline.equipment.push('home_equipment');
-    if (this.baseline.equipment.length === 0) this.baseline.equipment.push('bodyweight_only');
-
-    // Motivation
-    this.baseline.motivation = await this.askNumber('Rate your motivation level for fitness (1-10, where 1 is very unmotivated and 10 is extremely motivated): ', 1, 10);
-
-    console.log('\n✅ Baseline assessment complete!\n');
+    return {
+      energyLevel: Number(responseMap.get('baseline_energy')) || 1,
+      physicalFitness: Number(responseMap.get('baseline_fitness')) || 1,
+      strength: Number(responseMap.get('baseline_strength')) || 1,
+      flexibility: Number(responseMap.get('baseline_flexibility')) || 1,
+      weight: Number(responseMap.get('current_weight')) || 0,
+      height: Number(responseMap.get('height')) || 0,
+      nutritionQuality: Number(responseMap.get('baseline_nutrition')) || 1,
+      hydration: Number(responseMap.get('baseline_hydration')) || 1,
+      sleepQuality: Number(responseMap.get('baseline_sleep')) || 1,
+      stressManagement: Number(responseMap.get('stress_level')) || 1,
+      currentChallenges: []
+    };
   }
 
-  async collectGoals(): Promise<void> {
-    console.log('\n=== FITNESS GOALS ASSESSMENT ===\n');
-
-    // Primary goal
-    this.goals.primaryGoal = await this.askChoice(
-      'What is your primary fitness goal?',
-      ['weight_loss', 'muscle_gain', 'strength', 'endurance', 'flexibility', 'general_fitness']
-    );
-
-    // Target weight (if relevant)
-    if (this.goals.primaryGoal === 'weight_loss' || this.goals.primaryGoal === 'muscle_gain') {
-      this.goals.targetWeight = await this.askNumber('What is your target weight (in lbs)? ', 50, 500);
-    }
-
-    // Target levels
-    this.goals.targetStrengthLevel = await this.askNumber('What strength level do you want to achieve? (1-10): ', 1, 10);
-    this.goals.targetEnduranceLevel = await this.askNumber('What endurance level do you want to achieve? (1-10): ', 1, 10);
-    this.goals.targetFlexibilityLevel = await this.askNumber('What flexibility level do you want to achieve? (1-10): ', 1, 10);
-
-    // Timeframe
-    this.goals.timeframe = await this.askNumber('In how many months do you want to achieve these goals? ', 1, 24);
-
-    // Priority
-    this.goals.priority = await this.askChoice(
-      'How high priority is fitness in your life right now?',
-      ['low', 'medium', 'high']
-    );
-
-    console.log('\n✅ Goals assessment complete!\n');
+  processGoals(responses: SurveyResponse[]): UserGoals {
+    const responseMap = new Map(responses.map(r => [r.questionId, r.value]));
+    
+    return {
+      energyLevel: {
+        threeMonths: Number(responseMap.get('goal_energy_3m')) || 5,
+        sixMonths: Number(responseMap.get('goal_energy_6m')) || 6,
+        oneYear: Number(responseMap.get('goal_energy_1y')) || 7,
+        fiveYears: Number(responseMap.get('goal_energy_5y')) || 8,
+        tenYears: Number(responseMap.get('goal_energy_10y')) || 8
+      },
+      physicalFitness: {
+        threeMonths: Number(responseMap.get('goal_fitness_3m')) || 5,
+        sixMonths: Number(responseMap.get('goal_fitness_6m')) || 6,
+        oneYear: Number(responseMap.get('goal_fitness_1y')) || 7,
+        fiveYears: Number(responseMap.get('goal_fitness_5y')) || 8,
+        tenYears: Number(responseMap.get('goal_fitness_10y')) || 8
+      },
+      weight: {
+        threeMonths: Number(responseMap.get('goal_weight_3m')) || 0,
+        sixMonths: Number(responseMap.get('goal_weight_6m')) || 0,
+        oneYear: Number(responseMap.get('goal_weight_1y')) || 0,
+        fiveYears: Number(responseMap.get('goal_weight_5y')) || 0,
+        tenYears: Number(responseMap.get('goal_weight_10y')) || 0
+      },
+      customGoals: {}
+    };
   }
 
-  generateMissions(): DailyMission[] {
+  // ============ USER MANAGEMENT ============
+
+  createUser(name: string, surveyResponses: SurveyResponse[]): User {
+    const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    const user: User = {
+      id: userId,
+      name,
+      baseline: this.processSurveyResponses(userId, surveyResponses),
+      goals: this.processGoals(surveyResponses),
+      progress: {
+        level: 1,
+        xp: 0,
+        coins: 100, // Starting coins
+        streaks: {},
+        completedMissions: [],
+        unlockedAchievements: [],
+        lastActive: new Date()
+      },
+      surveyResponses,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    this.users.set(userId, user);
+    return user;
+  }
+
+  getUser(userId: string): User | undefined {
+    return this.users.get(userId);
+  }
+
+  // ============ DAILY MISSION GENERATION ============
+
+  generateDailyMissions(userId: string): DailyMission[] {
+    const user = this.getUser(userId);
+    if (!user) return [];
+
     const missions: DailyMission[] = [];
-    const baseline = this.baseline as FitnessBaseline;
-    const goals = this.goals as FitnessGoals;
+    const today = new Date().toDateString();
 
-    // Calculate gaps
-    const strengthGap = goals.targetStrengthLevel - baseline.currentStrengthLevel;
-    const enduranceGap = goals.targetEnduranceLevel - baseline.currentEnduranceLevel;
-    const flexibilityGap = goals.targetFlexibilityLevel - baseline.currentFlexibilityLevel;
+    // Generate personalized missions based on goals and current level
+    const missionCount = Math.min(3 + Math.floor(user.progress.level / 5), 7);
 
-    // Generate strength missions
-    if (strengthGap > 0) {
-      if (baseline.equipment.includes('gym_access') || baseline.equipment.includes('home_equipment')) {
-        missions.push({
-          id: 'strength_001',
-          title: 'Strength Training Session',
-          description: 'Complete a focused strength training workout targeting major muscle groups',
-          category: 'strength',
-          difficulty: baseline.fitnessExperience === 'beginner' ? 'easy' : 'medium',
-          estimatedTime: Math.min(baseline.timeAvailable * 0.7, 45),
-          equipment: baseline.equipment.includes('gym_access') ? ['gym_access'] : ['home_equipment'],
-          instructions: this.getStrengthInstructions(baseline.fitnessExperience, baseline.equipment)
-        });
-      } else {
-        missions.push({
-          id: 'strength_002',
-          title: 'Bodyweight Strength Circuit',
-          description: 'Build strength using bodyweight exercises',
-          category: 'strength',
-          difficulty: 'easy',
-          estimatedTime: 20,
-          equipment: ['bodyweight_only'],
-          instructions: [
-            'Perform 3 rounds of:',
-            '- 10 Push-ups (modify as needed)',
-            '- 15 Squats',
-            '- 30-second Plank',
-            '- 10 Lunges per leg',
-            'Rest 60 seconds between rounds'
-          ]
-        });
+    // Energy & Fitness Missions
+    if (user.goals.energyLevel.threeMonths > user.baseline.energyLevel) {
+      missions.push(this.createEnergyMission(user));
+    }
+
+    if (user.goals.physicalFitness.threeMonths > user.baseline.physicalFitness) {
+      missions.push(this.createFitnessMission(user));
+    }
+
+    // Nutrition Mission
+    if (user.baseline.nutritionQuality < 7) {
+      missions.push(this.createNutritionMission(user));
+    }
+
+    // Sleep Mission
+    if (user.baseline.sleepQuality < 8) {
+      missions.push(this.createSleepMission(user));
+    }
+
+    // Stress Management Mission
+    if (user.baseline.stressManagement < 7) {
+      missions.push(this.createStressMission(user));
+    }
+
+    // Fill remaining slots with variety missions
+    while (missions.length < missionCount) {
+      missions.push(this.createVarietyMission(user));
+    }
+
+    return missions.slice(0, missionCount);
+  }
+
+  private createEnergyMission(user: User): DailyMission {
+    const energyMissions = [
+      {
+        title: '🌅 Morning Energizer',
+        description: 'Do 10 jumping jacks within 30 minutes of waking up',
+        difficulty: 'easy' as const,
+        estimatedTime: 2
+      },
+      {
+        title: '💧 Hydration Boost',
+        description: 'Drink a full glass of water before each meal',
+        difficulty: 'easy' as const,
+        estimatedTime: 1
+      },
+      {
+        title: '🚶‍♂️ Energy Walk',
+        description: 'Take a 15-minute walk outdoors',
+        difficulty: 'medium' as const,
+        estimatedTime: 15
       }
-    }
+    ];
 
-    // Generate cardio missions
-    if (enduranceGap > 0 || goals.primaryGoal === 'weight_loss') {
-      const cardioTime = Math.min(baseline.timeAvailable * 0.6, 30);
-      missions.push({
-        id: 'cardio_001',
-        title: 'Cardiovascular Training',
-        description: 'Improve heart health and endurance',
-        category: 'cardio',
-        difficulty: baseline.currentEnduranceLevel < 5 ? 'easy' : 'medium',
-        estimatedTime: cardioTime,
-        equipment: ['bodyweight_only'],
-        instructions: this.getCardioInstructions(baseline.currentEnduranceLevel, cardioTime)
-      });
-    }
+    const mission = energyMissions[Math.floor(Math.random() * energyMissions.length)];
+    
+    return {
+      id: `energy_${Date.now()}`,
+      ...mission,
+      category: 'energy',
+      xpReward: mission.difficulty === 'easy' ? 10 : mission.difficulty === 'medium' ? 20 : 30,
+      coinReward: mission.difficulty === 'easy' ? 5 : mission.difficulty === 'medium' ? 10 : 15,
+      type: 'habit',
+      isCompleted: false
+    };
+  }
 
-    // Generate flexibility missions
-    if (flexibilityGap > 0) {
-      missions.push({
-        id: 'flexibility_001',
-        title: 'Flexibility & Mobility',
-        description: 'Improve flexibility and reduce muscle tension',
-        category: 'flexibility',
-        difficulty: 'easy',
-        estimatedTime: 15,
-        equipment: ['bodyweight_only'],
-        instructions: [
-          'Hold each stretch for 30 seconds:',
-          '- Neck rolls and shoulder shrugs',
-          '- Arm circles and chest stretch',
-          '- Hip circles and leg swings',
-          '- Hamstring and calf stretches',
-          '- Spinal twists (seated or standing)'
-        ]
-      });
-    }
+  private createFitnessMission(user: User): DailyMission {
+    const currentLevel = user.baseline.physicalFitness;
+    const targetLevel = user.goals.physicalFitness.threeMonths;
+    
+    const fitnessMissions = [
+      {
+        title: '💪 Strength Builder',
+        description: currentLevel < 4 ? 'Do 5 push-ups (knee push-ups if needed)' : 'Do 15 push-ups',
+        difficulty: currentLevel < 4 ? 'easy' as const : 'medium' as const,
+        estimatedTime: 3
+      },
+      {
+        title: '🏃‍♂️ Cardio Burst',
+        description: currentLevel < 4 ? 'Walk briskly for 10 minutes' : 'Run/jog for 15 minutes',
+        difficulty: currentLevel < 4 ? 'easy' as const : 'medium' as const,
+        estimatedTime: currentLevel < 4 ? 10 : 15
+      },
+      {
+        title: '🧘‍♀️ Flexibility Flow',
+        description: 'Do 5 minutes of stretching or yoga',
+        difficulty: 'easy' as const,
+        estimatedTime: 5
+      }
+    ];
 
-    // Add recovery mission for beginners or high intensity programs
-    if (baseline.fitnessExperience === 'beginner' || missions.length > 1) {
-      missions.push({
-        id: 'recovery_001',
-        title: 'Active Recovery',
-        description: 'Promote recovery and prepare for next workout',
-        category: 'recovery',
-        difficulty: 'easy',
+    const mission = fitnessMissions[Math.floor(Math.random() * fitnessMissions.length)];
+    
+    return {
+      id: `fitness_${Date.now()}`,
+      ...mission,
+      category: 'fitness',
+      xpReward: mission.difficulty === 'easy' ? 15 : mission.difficulty === 'medium' ? 25 : 35,
+      coinReward: mission.difficulty === 'easy' ? 8 : mission.difficulty === 'medium' ? 12 : 18,
+      type: 'habit',
+      isCompleted: false
+    };
+  }
+
+  private createNutritionMission(user: User): DailyMission {
+    const nutritionMissions = [
+      {
+        title: '🥗 Veggie Power',
+        description: 'Eat at least 3 servings of vegetables today',
+        difficulty: 'medium' as const,
+        estimatedTime: 0
+      },
+      {
+        title: '🍎 Fruit First',
+        description: 'Eat a piece of fruit before lunch',
+        difficulty: 'easy' as const,
+        estimatedTime: 5
+      },
+      {
+        title: '🚫 Skip the Processed',
+        description: 'Avoid processed snacks for the entire day',
+        difficulty: 'hard' as const,
+        estimatedTime: 0
+      }
+    ];
+
+    const mission = nutritionMissions[Math.floor(Math.random() * nutritionMissions.length)];
+    
+    return {
+      id: `nutrition_${Date.now()}`,
+      ...mission,
+      category: 'nutrition',
+      xpReward: mission.difficulty === 'easy' ? 12 : mission.difficulty === 'medium' ? 22 : 32,
+      coinReward: mission.difficulty === 'easy' ? 6 : mission.difficulty === 'medium' ? 11 : 16,
+      type: 'habit',
+      isCompleted: false
+    };
+  }
+
+  private createSleepMission(user: User): DailyMission {
+    return {
+      id: `sleep_${Date.now()}`,
+      title: '😴 Sleep Optimization',
+      description: 'Set a bedtime alarm and put away devices 1 hour before bed',
+      category: 'sleep',
+      difficulty: 'medium',
+      xpReward: 18,
+      coinReward: 9,
+      estimatedTime: 5,
+      type: 'habit',
+      isCompleted: false
+    };
+  }
+
+  private createStressMission(user: User): DailyMission {
+    const stressMissions = [
+      {
+        title: '🧘‍♂️ Mindful Moment',
+        description: 'Practice 5 minutes of deep breathing or meditation',
+        difficulty: 'easy' as const,
+        estimatedTime: 5
+      },
+      {
+        title: '📝 Gratitude Practice',
+        description: 'Write down 3 things you\'re grateful for',
+        difficulty: 'easy' as const,
+        estimatedTime: 3
+      },
+      {
+        title: '🎵 Stress Release',
+        description: 'Listen to calming music for 10 minutes',
+        difficulty: 'easy' as const,
+        estimatedTime: 10
+      }
+    ];
+
+    const mission = stressMissions[Math.floor(Math.random() * stressMissions.length)];
+    
+    return {
+      id: `stress_${Date.now()}`,
+      ...mission,
+      category: 'stress',
+      xpReward: 10,
+      coinReward: 5,
+      type: 'habit',
+      isCompleted: false
+    };
+  }
+
+  private createVarietyMission(user: User): DailyMission {
+    const varietyMissions = [
+      {
+        title: '📚 Learn Something New',
+        description: 'Spend 10 minutes learning about health and wellness',
+        difficulty: 'easy' as const,
         estimatedTime: 10,
-        equipment: ['bodyweight_only'],
-        instructions: [
-          '- 5 minutes gentle walking',
-          '- Deep breathing exercises (4-7-8 pattern)',
-          '- Gentle stretching focusing on worked muscles',
-          '- Hydrate well',
-          '- Note how you feel in a fitness journal'
-        ]
-      });
-    }
-
-    return this.prioritizeMissions(missions, baseline, goals);
-  }
-
-  private getStrengthInstructions(experience: string, equipment: string[]): string[] {
-    if (equipment.includes('gym_access')) {
-      if (experience === 'beginner') {
-        return [
-          'Focus on compound movements:',
-          '- Goblet squats: 3 sets x 8-12 reps',
-          '- Assisted pull-ups or lat pulldowns: 3 sets x 5-10 reps',
-          '- Dumbbell bench press: 3 sets x 8-12 reps',
-          '- Plank: 3 sets x 20-30 seconds',
-          'Rest 60-90 seconds between sets'
-        ];
+        category: 'learning'
+      },
+      {
+        title: '🌿 Nature Connection',
+        description: 'Spend 15 minutes in nature or by a window',
+        difficulty: 'easy' as const,
+        estimatedTime: 15,
+        category: 'wellness'
+      },
+      {
+        title: '🤝 Social Wellness',
+        description: 'Have a meaningful conversation with someone',
+        difficulty: 'medium' as const,
+        estimatedTime: 20,
+        category: 'social'
       }
-      return [
-        'Compound strength training:',
-        '- Squats: 4 sets x 6-8 reps',
-        '- Deadlifts: 4 sets x 5-6 reps',
-        '- Bench press: 4 sets x 6-8 reps',
-        '- Rows: 4 sets x 8-10 reps',
-        'Rest 2-3 minutes between sets'
-      ];
-    }
-    
-    return [
-      'Home strength circuit:',
-      '- Push-up variations: 3 sets x 8-15 reps',
-      '- Dumbbell squats: 3 sets x 12-15 reps',
-      '- Dumbbell rows: 3 sets x 10-12 reps',
-      '- Overhead press: 3 sets x 8-12 reps',
-      'Rest 60 seconds between sets'
     ];
+
+    const mission = varietyMissions[Math.floor(Math.random() * varietyMissions.length)];
+    
+    return {
+      id: `variety_${Date.now()}`,
+      ...mission,
+      xpReward: mission.difficulty === 'easy' ? 8 : mission.difficulty === 'medium' ? 15 : 25,
+      coinReward: mission.difficulty === 'easy' ? 4 : mission.difficulty === 'medium' ? 7 : 12,
+      type: 'habit',
+      isCompleted: false
+    };
   }
 
-  private getCardioInstructions(enduranceLevel: number, duration: number): string[] {
-    if (enduranceLevel < 4) {
-      return [
-        `${duration}-minute beginner cardio:`,
-        '- 5 minutes easy walking',
-        '- Alternate 1 minute brisk walk, 1 minute easy walk',
-        '- End with 5 minutes easy walking',
-        '- Focus on breathing and form over speed'
-      ];
-    }
+  // ============ MISSION COMPLETION & REWARDS ============
+
+  completeMission(userId: string, missionId: string): boolean {
+    const user = this.getUser(userId);
+    if (!user) return false;
+
+    // In a real app, you'd fetch the mission from today's missions
+    // For demo purposes, we'll create a sample mission completion
+    const xpGained = 20;
+    const coinsGained = 10;
     
-    return [
-      `${duration}-minute cardio session:`,
-      '- 5 minute warm-up',
-      '- High-intensity intervals: 30 seconds work, 90 seconds rest',
-      '- Repeat for main portion of workout',
-      '- 5 minute cool-down',
-      '- Monitor heart rate if possible'
-    ];
+    user.progress.xp += xpGained;
+    user.progress.coins += coinsGained;
+    user.progress.completedMissions.push(missionId);
+    user.progress.lastActive = new Date();
+
+    // Check for level up
+    this.checkLevelUp(user);
+    
+    // Check for achievements
+    this.checkAchievements(user);
+    
+    user.updatedAt = new Date();
+    return true;
   }
 
-  private prioritizeMissions(missions: DailyMission[], baseline: FitnessBaseline, goals: FitnessGoals): DailyMission[] {
-    // Sort by priority based on primary goal and available time
-    const totalTime = missions.reduce((sum, mission) => sum + mission.estimatedTime, 0);
+  private checkLevelUp(user: User): boolean {
+    const xpRequired = user.progress.level * 100; // Simple leveling formula
+    if (user.progress.xp >= xpRequired) {
+      user.progress.level++;
+      user.progress.coins += user.progress.level * 10; // Level up bonus
+      return true;
+    }
+    return false;
+  }
+
+  private checkAchievements(user: User): Achievement[] {
+    const newAchievements: Achievement[] = [];
     
-    if (totalTime > baseline.timeAvailable) {
-      // Prioritize missions based on primary goal
-      const priorityOrder: { [key: string]: string[] } = {
-        'weight_loss': ['cardio', 'strength', 'recovery', 'flexibility'],
-        'muscle_gain': ['strength', 'recovery', 'flexibility', 'cardio'],
-        'strength': ['strength', 'recovery', 'flexibility', 'cardio'],
-        'endurance': ['cardio', 'flexibility', 'recovery', 'strength'],
-        'flexibility': ['flexibility', 'recovery', 'strength', 'cardio'],
-        'general_fitness': ['strength', 'cardio', 'flexibility', 'recovery']
-      };
-      
-      const order = priorityOrder[goals.primaryGoal] || priorityOrder['general_fitness'];
-      missions.sort((a, b) => order.indexOf(a.category) - order.indexOf(b.category));
-      
-      // Keep missions that fit within time constraint
-      let currentTime = 0;
-      return missions.filter(mission => {
-        if (currentTime + mission.estimatedTime <= baseline.timeAvailable) {
-          currentTime += mission.estimatedTime;
-          return true;
+    for (const achievement of this.achievements) {
+      if (user.progress.unlockedAchievements.includes(achievement.id)) {
+        continue; // Already unlocked
+      }
+
+      let requirementsMet = true;
+      for (const requirement of achievement.requirements) {
+        switch (requirement.type) {
+          case 'total_missions':
+            if (user.progress.completedMissions.length < requirement.value) {
+              requirementsMet = false;
+            }
+            break;
+          case 'streak':
+            const categoryStreak = user.progress.streaks[requirement.category || 'any'] || 0;
+            if (categoryStreak < requirement.value) {
+              requirementsMet = false;
+            }
+            break;
+          // Add more requirement checks...
         }
-        return false;
-      });
+      }
+
+      if (requirementsMet) {
+        user.progress.unlockedAchievements.push(achievement.id);
+        user.progress.xp += achievement.xpReward;
+        achievement.unlockedAt = new Date();
+        newAchievements.push(achievement);
+      }
     }
-    
-    return missions;
+
+    return newAchievements;
   }
 
-  displayResults(): void {
-    const missions = this.generateMissions();
-    const baseline = this.baseline as FitnessBaseline;
-    const goals = this.goals as FitnessGoals;
+  // ============ PROGRESS TRACKING ============
 
-    console.log('\n' + '='.repeat(50));
-    console.log('🏋️  YOUR PERSONALIZED FITNESS PLAN  🏋️');
-    console.log('='.repeat(50));
+  getProgressReport(userId: string): any {
+    const user = this.getUser(userId);
+    if (!user) return null;
 
-    // Summary
-    console.log(`\n📊 SUMMARY:`);
-    console.log(`Primary Goal: ${goals.primaryGoal.replace('_', ' ')}`);
-    console.log(`Timeframe: ${goals.timeframe} months`);
-    console.log(`Daily Time Available: ${baseline.timeAvailable} minutes`);
-    
-    if (goals.targetWeight && baseline.currentWeight) {
-      const weightDiff = goals.targetWeight - baseline.currentWeight;
-      console.log(`Weight Goal: ${weightDiff > 0 ? 'Gain' : 'Lose'} ${Math.abs(weightDiff)} lbs`);
-    }
+    const daysSinceStart = Math.floor(
+      (new Date().getTime() - user.createdAt.getTime()) / (1000 * 60 * 60 * 24)
+    );
 
-    console.log(`\n🎯 TARGET IMPROVEMENTS:`);
-    console.log(`Strength: ${baseline.currentStrengthLevel} → ${goals.targetStrengthLevel}`);
-    console.log(`Endurance: ${baseline.currentEnduranceLevel} → ${goals.targetEnduranceLevel}`);
-    console.log(`Flexibility: ${baseline.currentFlexibilityLevel} → ${goals.targetFlexibilityLevel}`);
+    // Calculate progress towards 3-month goals
+    const progressToward3MonthGoals = {
+      energy: this.calculateGoalProgress(user.baseline.energyLevel, user.goals.energyLevel.threeMonths, user.baseline.energyLevel),
+      fitness: this.calculateGoalProgress(user.baseline.physicalFitness, user.goals.physicalFitness.threeMonths, user.baseline.physicalFitness),
+      // Add current measurements here in a real app
+    };
 
-    console.log(`\n📅 YOUR DAILY MISSIONS:`);
-    
-    missions.forEach((mission, index) => {
-      console.log(`\n${index + 1}. ${mission.title} (${mission.estimatedTime} min)`);
-      console.log(`   Category: ${mission.category} | Difficulty: ${mission.difficulty}`);
-      console.log(`   ${mission.description}`);
-      console.log(`   Equipment needed: ${mission.equipment.join(', ')}`);
-      console.log(`   Instructions:`);
-      mission.instructions.forEach(instruction => {
-        console.log(`     ${instruction}`);
-      });
-    });
-
-    const totalTime = missions.reduce((sum, mission) => sum + mission.estimatedTime, 0);
-    console.log(`\n⏱️  Total daily time commitment: ${totalTime} minutes`);
-    console.log(`\n🌟 Pro tip: Start with the easiest mission first to build momentum!`);
+    return {
+      user: {
+        name: user.name,
+        level: user.progress.level,
+        xp: user.progress.xp,
+        coins: user.progress.coins
+      },
+      stats: {
+        daysSinceStart,
+        totalMissionsCompleted: user.progress.completedMissions.length,
+        achievementsUnlocked: user.progress.unlockedAchievements.length,
+        currentStreaks: user.progress.streaks
+      },
+      goalProgress: progressToward3MonthGoals,
+      recentAchievements: this.achievements.filter(a => 
+        user.progress.unlockedAchievements.includes(a.id)
+      ).slice(-3)
+    };
   }
 
-  async run(): Promise<void> {
-    try {
-      console.log('🚀 Welcome to your Personal Fitness Quest Generator!\n');
-      
-      await this.collectBaseline();
-      await this.collectGoals();
-      
-      this.displayResults();
-      
-    } catch (error) {
-      console.error('An error occurred:', error);
-    } finally {
-      this.rl.close();
-    }
+  private calculateGoalProgress(baseline: number, target: number, current: number): number {
+    if (target === baseline) return 100;
+    return Math.min(100, Math.max(0, ((current - baseline) / (target - baseline)) * 100));
+  }
+
+  // ============ INITIALIZATION ============
+
+  private initializeAchievements(): void {
+    this.achievements = [
+      {
+        id: 'first_mission',
+        title: '🎯 First Steps',
+        description: 'Complete your first daily mission',
+        icon: '🎯',
+        xpReward: 50,
+        requirements: [{ type: 'total_missions', value: 1 }]
+      },
+      {
+        id: 'week_warrior',
+        title: '⚔️ Week Warrior',
+        description: 'Complete missions for 7 days straight',
+        icon: '⚔️',
+        xpReward: 200,
+        requirements: [{ type: 'streak', value: 7, category: 'daily' }]
+      },
+      {
+        id: 'fitness_fanatic',
+        title: '💪 Fitness Fanatic',
+        description: 'Complete 20 fitness missions',
+        icon: '💪',
+        xpReward: 300,
+        requirements: [{ type: 'category_progress', value: 20, category: 'fitness' }]
+      },
+      {
+        id: 'level_10',
+        title: '🌟 Rising Star',
+        description: 'Reach level 10',
+        icon: '🌟',
+        xpReward: 500,
+        requirements: [{ type: 'goal_reached', value: 10 }]
+      }
+    ];
+  }
+
+  private initializeMissionTemplates(): void {
+    // Mission templates would be initialized here
+    // This is a simplified version - in production, you'd have a rich database of missions
+  }
+
+  // ============ API METHODS FOR MOBILE APP ============
+
+  // These methods would be exposed as API endpoints for the mobile app
+  
+  async getUserDashboard(userId: string) {
+    const user = this.getUser(userId);
+    if (!user) throw new Error('User not found');
+
+    return {
+      user: {
+        name: user.name,
+        level: user.progress.level,
+        xp: user.progress.xp,
+        coins: user.progress.coins
+      },
+      todaysMissions: this.generateDailyMissions(userId),
+      progressReport: this.getProgressReport(userId)
+    };
+  }
+
+  async submitSurveyAndCreateUser(name: string, responses: SurveyResponse[]) {
+    const user = this.createUser(name, responses);
+    return {
+      success: true,
+      userId: user.id,
+      initialMissions: this.generateDailyMissions(user.id)
+    };
+  }
+
+  async completeMissionAPI(userId: string, missionId: string) {
+    const success = this.completeMission(userId, missionId);
+    if (!success) throw new Error('Failed to complete mission');
+
+    return {
+      success: true,
+      newProgress: this.getProgressReport(userId),
+      newAchievements: [] // Would check for new achievements
+    };
   }
 }
 
-// Run the program
-async function main() {
-  const questionnaire = new FitnessQuestionnaire();
-  await questionnaire.run();
+// ============ USAGE EXAMPLE ============
+
+// Initialize the app
+const healthApp = new HealthVitalityApp();
+
+// Example: Create a new user from survey responses
+const exampleResponses: SurveyResponse[] = [
+  { questionId: 'baseline_energy', value: 4, timestamp: new Date() },
+  { questionId: 'baseline_fitness', value: 3, timestamp: new Date() },
+  { questionId: 'current_weight', value: 180, timestamp: new Date() },
+  { questionId: 'height', value: 70, timestamp: new Date() },
+  { questionId: 'goal_energy_3m', value: 7, timestamp: new Date() },
+  { questionId: 'goal_fitness_3m', value: 6, timestamp: new Date() },
+  { questionId: 'goal_weight_3m', value: 170, timestamp: new Date() }
+];
+
+// Create user and get their daily missions
+const newUser = healthApp.createUser('Alex Smith', exampleResponses);
+console.log('New user created:', newUser.name);
+
+const dailyMissions = healthApp.generateDailyMissions(newUser.id);
+console.log('Today\'s missions:', dailyMissions.map(m => m.title));
+
+// Simulate completing a mission
+if (dailyMissions.length > 0) {
+  healthApp.completeMission(newUser.id, dailyMissions[0].id);
+  console.log('Mission completed! Progress:', healthApp.getProgressReport(newUser.id));
 }
 
-// Export for potential use in other modules
-export { FitnessQuestionnaire, FitnessBaseline, FitnessGoals, DailyMission };
-
-// Run if this file is executed directly
-if (require.main === module) {
-  main();
-}
+export { HealthVitalityApp, type User, type DailyMission, type Achievement, type SurveyResponse };
